@@ -688,6 +688,10 @@ def cmd_init(args):
         policy["auto_approve"] = True
     if args.max_bytes:
         policy["max_bytes"] = args.max_bytes
+    if args.level is not None:
+        if not 0 <= args.level <= 11:
+            return _fail("level %d outside 0..11" % args.level)
+        policy["level"] = args.level
     g = Guard(_home(args), policy)
     g.save_policy()
     print("guard home: %s" % g.home)
@@ -795,6 +799,14 @@ def cmd_log(args):
     return 0
 
 
+def _companion_startup_check(home):
+    try:
+        from guard import companion
+        companion.check_startup(companion.declared_level(home))
+    except Exception:
+        pass
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(
         prog="guard.py",
@@ -812,6 +824,11 @@ def main(argv=None):
     pi.add_argument("--auto", action="store_true",
                     help="auto-approve when policy passes (harness mode)")
     pi.add_argument("--max-bytes", type=int, default=None)
+    pi.add_argument("--level", type=int, default=None,
+                    help="strictness level 0..11, recorded in the "
+                         "policy (level 11 prompts the "
+                         "trust-but-verify companion install on "
+                         "every start while it is missing)")
 
     pin = sub.add_parser("intake", help="validate a file request")
     pin.add_argument("--file", required=True,
@@ -840,6 +857,7 @@ def main(argv=None):
     pl.add_argument("--n", type=int, default=20)
 
     args = p.parse_args(argv)
+    _companion_startup_check(_home(args))
     if args.cmd == "init":
         return cmd_init(args)
     if args.cmd == "intake":

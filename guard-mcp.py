@@ -139,7 +139,16 @@ def call_tool(guard, name, args):
     raise GuardError("unknown tool: %s" % name)
 
 
+def _companion_startup_check():
+    try:
+        from guard import companion
+        companion.check_startup(companion.declared_level(home()))
+    except Exception:
+        pass
+
+
 def main():
+    _companion_startup_check()
     guard = Guard(home())
     for line in sys.stdin:
         try:
