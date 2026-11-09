@@ -183,4 +183,4 @@ any other channel) moves the bytes.
 
 ## License
 
-Apache License 2.0. See `LICENSE`. Copyright 2026 Captain.
+Apache License 2.0. See `LICENSE`. Copyright 2026 J.P. Picard aka Macro-Harder.
