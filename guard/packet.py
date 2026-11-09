@@ -1,5 +1,6 @@
 import dataclasses
 
+from guard.companion import COMPANION_NAME, companion_offer_for_level
 from guard.manifest import DESIGN_REVISION
 
 FORMAT_VERSION = 1
@@ -191,6 +192,7 @@ class InstallerPacket:
         self._level = DEFAULT_LEVEL
         self._answers = {q.id: q.default for q in _QUESTIONS}
         self._overrides = {}
+        self._companion_install = False
 
     def answer(self, question_id, option_id):
         q = _find_question(question_id)
@@ -214,14 +216,38 @@ class InstallerPacket:
     def set_override(self, name, value):
         self._overrides[name] = value
 
+    def companion_offer(self):
+        return companion_offer_for_level(self._level)
+
+    def answer_companion(self, install):
+        offer = self.companion_offer()
+        if offer is None:
+            raise PacketError(
+                "the %s install question is only presented at "
+                "level 11, not at level %d"
+                % (COMPANION_NAME, self._level))
+        if not isinstance(install, bool):
+            raise PacketError(
+                "the %s answer is a yes/no choice, got %r"
+                % (offer.name, install))
+        self._companion_install = install
+
     def declaration(self):
-        return {
+        decl = {
             "format_version": FORMAT_VERSION,
             "design_revision": DESIGN_REVISION,
             "level": self._level,
             "answers": dict(self._answers),
             "overrides": dict(self._overrides),
         }
+        offer = self.companion_offer()
+        if offer is not None:
+            decl["companion"] = {
+                "name": offer.name,
+                "url": offer.url,
+                "install": self._companion_install,
+            }
+        return decl
 
 
 def default_packet():
