@@ -42,6 +42,20 @@ Policy knobs in `policy.json` (edit the file, no command needed):
 | `max_requests_per_hour` | 20 | Rate limit per sender. |
 | `max_staged` | 5 | Staged files at once. |
 | `ttl_seconds` | 3600 | Unclaimed staged copies are deleted after this long. |
+| `level` | (unset) | Strictness level 0–11 declared at install (or `$BRIDGE_GUARD_LEVEL`). At level 11, every guard start prompts the trust-but-verify install while it is missing (see below). |
+
+**Level 11 companion.** Level 11 takes an extra step: the
+installer packet asks whether to also install
+[trust-but-verify](https://github.com/Macro-Harder/trust-but-verify),
+which audits MCP servers' tool descriptions and schemas for
+hidden instructions before an agent trusts them; the monitor
+uses it as its MCP-audit companion. Declare the level at init
+(`python3 guard.py --home ~/.bridge-guard init --level 11 ...`)
+or by setting `level` in `policy.json`. While a level-11 guard
+cannot detect trust-but-verify (via `$TRUST_BUT_VERIFY_PATH`, an
+importable `trust_but_verify` module, or a `trust-but-verify`
+binary), every start prints the install prompt to stderr. The
+prompt is informational only — it never blocks or installs.
 
 ## Harness variant — AgenC
 

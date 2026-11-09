@@ -172,6 +172,30 @@ python3 -m unittest tests.test_guard -v   # 34 tests
 python3 demo/live_demo.py                 # end-to-end + attacks
 ```
 
+## Companion at level 11: trust-but-verify
+
+At strictness level 11 — every maximum, plus the monitor agent —
+the guard has a companion:
+[trust-but-verify](https://github.com/Macro-Harder/trust-but-verify).
+It audits MCP servers' tool descriptions and schemas for hidden
+instructions before an agent trusts them, and at level 11 the
+monitor uses it as its MCP-audit companion.
+
+- **Install question.** Picking level 11 in the installer packet
+  asks one extra question — whether to also install
+  trust-but-verify, with its link — and the answer is recorded in
+  the packet declaration. Levels 0–10 are never asked.
+- **Startup prompt.** On every start (`guard.py` or
+  `guard-mcp.py`), a guard declared at level 11 whose
+  trust-but-verify is not detected prints the install prompt —
+  the question and the link — to stderr, and keeps printing it
+  on every start until the companion is installed. The prompt
+  never blocks a start and never installs anything itself.
+- Declare the level with `guard.py init --level 11`, the
+  `level` key in `policy.json`, or `$BRIDGE_GUARD_LEVEL`.
+  Detection checks `$TRUST_BUT_VERIFY_PATH`, an importable
+  `trust_but_verify` module, or a `trust-but-verify` binary.
+
 ## A DLC, not a fork
 
 The bridge works fine without this. It is an optional install:
