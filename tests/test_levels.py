@@ -51,12 +51,20 @@ class PresetTest(unittest.TestCase):
             else:
                 self.assertIsNone(value, s.name)
 
-    def test_level_ten_engages_every_toggle_except_absolute_trust(self):
+    def test_level_ten_toggles_sit_at_their_shipped_defaults(self):
         preset = preset_for(10)
         for s in settings():
             if isinstance(s.default, bool):
-                self.assertIs(preset.values[s.name],
-                              s.name != "absolute_trust_enabled", s.name)
+                self.assertIs(preset.values[s.name], s.default,
+                              s.name)
+
+    def test_no_preset_turns_the_cost_ledger_on(self):
+        # The ledger is a per-pair toggle that comes on only through
+        # a jointly negotiated cost allocation (design section 16);
+        # no strictness preset may switch it on.
+        for level in range(12):
+            self.assertIs(preset_for(level).values["ledger_on"],
+                          False, level)
 
     def test_level_ten_engages_the_variables(self):
         preset = preset_for(10)

@@ -117,6 +117,21 @@ class PlaidNameTest(unittest.TestCase):
         self.assertIn("PLAID", entry.human_text)
         self.assertIn("PLAID", entry.agent_text)
 
+    def test_plaid_picker_texts_explain_what_the_auditor_does(self):
+        from guard.levels import LEVEL_PLAID
+        entry = [e for e in level_picker()
+                 if e.level == LEVEL_PLAID][0]
+        for text in (entry.human_text, entry.agent_text):
+            self.assertIn("trust-but-verify", text)
+            self.assertIn("hidden instructions", text)
+
+    def test_plaid_picker_texts_explain_what_the_monitor_does(self):
+        from guard.levels import LEVEL_PLAID
+        entry = [e for e in level_picker()
+                 if e.level == LEVEL_PLAID][0]
+        self.assertIn("watches the guard", entry.human_text)
+        self.assertIn("watches the guard", entry.agent_text)
+
 
 class PacketAnswersTest(unittest.TestCase):
     def test_choosing_nothing_yields_the_all_defaults_packet(self):
