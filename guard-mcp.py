@@ -155,6 +155,8 @@ def main():
             msg = json.loads(line)
         except Exception:
             continue
+        if not isinstance(msg, dict):
+            continue
         rid = msg.get("id")
         method = msg.get("method")
         if method == "initialize":
