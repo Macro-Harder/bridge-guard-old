@@ -41,15 +41,15 @@ guardian at all.
 - Never sends a file itself. It stages the copy; the main agent
   sends it.
 
-## The level-11 companion
+## The PLAID companion
 
-At strictness level 11 the guard pairs with
+At PLAID (strictness level 11) the guard pairs with
 [trust-but-verify](https://github.com/Macro-Harder/trust-but-verify),
 a standalone MCP Server Auditor: it audits MCP servers' tool
 descriptions and schemas for hidden instructions before an agent
-trusts them, and the level-11 monitor uses it as its MCP-audit
+trusts them, and the PLAID monitor uses it as its MCP-audit
 companion. The link is one-way and local: the installer packet
-asks at level 11 whether to install it, and a level-11 guard
+asks at PLAID whether to install it, and a PLAID guard
 start prompts its install while it is missing. Its verdicts
 reach the guard the same way everything else does — as data a
 case can consider, never as an instruction and never as a new

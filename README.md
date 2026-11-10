@@ -172,21 +172,21 @@ python3 -m unittest tests.test_guard -v   # 34 tests
 python3 demo/live_demo.py                 # end-to-end + attacks
 ```
 
-## Companion at level 11: trust-but-verify
+## Companion at PLAID: trust-but-verify
 
-At strictness level 11 — every maximum, plus the monitor agent —
-the guard has a companion:
+At PLAID — strictness level 11, every maximum, plus the monitor
+agent — the guard has a companion:
 [trust-but-verify](https://github.com/Macro-Harder/trust-but-verify).
 It audits MCP servers' tool descriptions and schemas for hidden
-instructions before an agent trusts them, and at level 11 the
+instructions before an agent trusts them, and at PLAID the
 monitor uses it as its MCP-audit companion.
 
-- **Install question.** Picking level 11 in the installer packet
+- **Install question.** Picking PLAID (level 11) in the installer packet
   asks one extra question — whether to also install
   trust-but-verify, with its link — and the answer is recorded in
   the packet declaration. Levels 0–10 are never asked.
 - **Startup prompt.** On every start (`guard.py` or
-  `guard-mcp.py`), a guard declared at level 11 whose
+  `guard-mcp.py`), a guard declared at PLAID (level 11) whose
   trust-but-verify is not detected prints the install prompt —
   the question and the link — to stderr, and keeps printing it
   on every start until the companion is installed. The prompt
