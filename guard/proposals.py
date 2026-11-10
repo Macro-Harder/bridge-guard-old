@@ -36,7 +36,9 @@ def validate_proposal(message):
         raise ProposalError(
             "a %s carries exactly the fields on its form "
             "(missing: %s; extra: %s)" % (kind, missing, extra))
-    if message["v"] != SUPPORTED_VERSION:
+    if isinstance(message["v"], bool) \
+            or not isinstance(message["v"], int) \
+            or message["v"] != SUPPORTED_VERSION:
         raise ProposalError(
             "unsupported proposal version %r; this desk reads "
             "version %d" % (message["v"], SUPPORTED_VERSION))

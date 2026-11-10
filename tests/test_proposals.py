@@ -80,6 +80,13 @@ class ProposalFormTest(unittest.TestCase):
         with self.assertRaises(ProposalError):
             proposals.validate_proposal(tool_proposal(v=2))
 
+    def test_version_must_be_the_integer_one(self):
+        # Regression for audit L1: True and 1.0 compare equal to 1,
+        # so both used to pass as "version 1".
+        for bad in (True, 1.0, "1"):
+            with self.assertRaises(ProposalError, msg=repr(bad)):
+                proposals.validate_proposal(tool_proposal(v=bad))
+
     def test_tool_arguments_must_be_an_object(self):
         with self.assertRaises(ProposalError):
             proposals.validate_proposal(
