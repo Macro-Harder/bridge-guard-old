@@ -78,6 +78,7 @@ class CostAccount:
         self._escrows = {}
         self._quota_used = {}
         self._messages_used = {}
+        self._day_high_water = None
 
     def _validate(self, allocation):
         prices = allocation.get("prices")
@@ -119,6 +120,23 @@ class CostAccount:
                 "the cost ledger is off for pair %r; %s does not "
                 "run" % (self.pair_id, action))
 
+    def _require_day(self, day):
+        # The day reckons the free-allowance and quota windows, so
+        # it is the ledger's clock, not the caller's: a day behind
+        # the highest day already seen would reopen a spent
+        # window, and is refused. The day only ever moves forward.
+        if isinstance(day, bool) or not isinstance(day, int) \
+                or day < 0:
+            raise CostError(
+                "day must be a non-negative integer, got %r" % (day,))
+        if self._day_high_water is not None \
+                and day < self._day_high_water:
+            raise CostError(
+                "day %r is behind this ledger's current day %r; "
+                "windows do not reopen"
+                % (day, self._day_high_water))
+        self._day_high_water = day
+
     @staticmethod
     def _require_positive(action, value):
         if isinstance(value, bool) \
@@ -139,6 +157,7 @@ class CostAccount:
 
     def charge(self, kind, day=0):
         self._require_on("charging")
+        self._require_day(day)
         if kind in CODE_STAGE_KINDS:
             raise CostError(
                 "%r is a code-stage check; code eats first and is "
@@ -156,6 +175,7 @@ class CostAccount:
         return amount
 
     def admit_case(self, day=0):
+        self._require_day(day)
         if not self.ledger_on:
             used = self._quota_used.get(day, 0)
             if used >= self.ledger_off_case_quota:

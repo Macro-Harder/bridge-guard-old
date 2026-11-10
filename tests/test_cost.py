@@ -116,6 +116,34 @@ class ChargeFloorTest(unittest.TestCase):
         self.assertEqual(account.balance, 23)
 
 
+class DayWindowTest(unittest.TestCase):
+    """Regression for audit L4: the day that reckons the free
+    allowance and the case quota was caller-supplied, so rotating
+    the day reset spent windows. The ledger's day only moves
+    forward; a day behind the current one is refused."""
+
+    def test_a_day_cannot_go_backwards_for_the_allowance(self):
+        account = CostAccount("pair-b", allocation())
+        for _ in range(3):
+            self.assertEqual(account.charge("message", day=1), 0)
+        self.assertEqual(account.charge("message", day=1), 1)
+        account.charge("message", day=2)
+        with self.assertRaises(CostError):
+            account.charge("message", day=1)
+
+    def test_a_day_cannot_go_backwards_for_the_quota(self):
+        account = CostAccount("pair-b")
+        self.assertTrue(account.admit_case(day=5))
+        with self.assertRaises(CostError):
+            account.admit_case(day=4)
+
+    def test_day_must_be_a_non_negative_int(self):
+        account = CostAccount("pair-b", allocation())
+        for bad in (-1, True, "1", 1.5, None):
+            with self.assertRaises(CostError, msg=repr(bad)):
+                account.charge("case", day=bad)
+
+
 class OffByDefaultTest(unittest.TestCase):
     def test_ledger_off_without_allocation(self):
         account = CostAccount("pair-b")
