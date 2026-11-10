@@ -1,8 +1,9 @@
 import dataclasses
 import hashlib
-import hmac
 import json
 import secrets
+
+from guard import ed25519
 
 _SECONDS_PER_DAY = 86400
 
@@ -39,25 +40,30 @@ def _material(token):
 
 
 def generate_keypair():
-    material = secrets.token_bytes(32)
-    return KeyPair(secret="sk-" + material.hex(),
-                   public="pk-" + material.hex())
+    seed = secrets.token_bytes(32)
+    return KeyPair(secret="sk-" + seed.hex(),
+                   public="pk-" + ed25519.publickey(seed).hex())
 
 
 def sign(secret, obj):
-    return hmac.new(_material(secret), _canonical(obj),
-                    hashlib.sha256).hexdigest()
+    return ed25519.sign(_material(secret), _canonical(obj)).hex()
 
 
 def _verify(public, obj, sig):
     if not isinstance(sig, str) or not sig:
         return False
     try:
-        expected = hmac.new(_material(public), _canonical(obj),
-                            hashlib.sha256).hexdigest()
+        signature = bytes.fromhex(sig)
+        key = _material(public)
     except (ValueError, TypeError):
         return False
-    return hmac.compare_digest(expected, sig)
+    return ed25519.verify(key, _canonical(obj), signature)
+
+
+def verify(public, obj, sig):
+    """_verify under a public name, for the package's other gates
+    (guard.formats checks relayed origin signatures with it)."""
+    return _verify(public, obj, sig)
 
 
 def pair_hash(first_public, second_public):

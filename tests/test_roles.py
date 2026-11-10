@@ -503,5 +503,42 @@ class AbsoluteTrustTest(unittest.TestCase):
         self.assertFalse(other.is_active(self.now))
 
 
+class PublicKeyCannotSignTest(unittest.TestCase):
+    """Regression for audit C1 / break-it A1: a published "public"
+    key must carry no signing power. Before the Ed25519 swap the
+    public token was the HMAC secret with its prefix changed, and
+    every one of these forgeries succeeded."""
+
+    def test_certificate_forged_from_the_public_key_is_rejected(self):
+        master = generate_keypair()
+        registry = RoleRegistry(master.public)
+        attacker = generate_keypair()
+        stripped = master.public.split("-", 1)[1]
+        for guess in ("sk-" + stripped, master.public, stripped):
+            cert = make_certificate(guess, "node-1", "master",
+                                    attacker.public)
+            self.assertFalse(registry.add_certificate(cert), guess)
+        self.assertIsNone(registry.role_for(attacker.public))
+
+    def test_envelope_forged_from_the_public_key_is_rejected(self):
+        master = generate_keypair()
+        registry = RoleRegistry(master.public)
+        node = generate_keypair()
+        cert = make_certificate(master.secret, "node-1", "worker",
+                                node.public)
+        self.assertTrue(registry.add_certificate(cert))
+        stripped = node.public.split("-", 1)[1]
+        forged = {"msg": {"kind": "task"},
+                  "sig": sign("sk-" + stripped, {"kind": "task"}),
+                  "signer": node.public}
+        self.assertIsNone(registry.verify_envelope(forged))
+        self.assertFalse(registry.authorize(forged, "task"))
+
+    def test_public_and_secret_are_distinct_material(self):
+        kp = generate_keypair()
+        self.assertNotEqual(kp.secret.split("-", 1)[1],
+                            kp.public.split("-", 1)[1])
+
+
 if __name__ == "__main__":
     unittest.main()
