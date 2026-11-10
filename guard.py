@@ -210,7 +210,8 @@ def validate_receipt(obj):
             or "/" in obj["filename"] or "\\" in obj["filename"]:
         raise GuardError("auto-reject: bad filename: %r"
                          % obj["filename"])
-    if not re.fullmatch(r"[0-9a-f]{64}", obj["sha256"] or ""):
+    if not isinstance(obj["sha256"], str) or not re.fullmatch(
+            r"[0-9a-f]{64}", obj["sha256"]):
         raise GuardError("auto-reject: bad sha256 in receipt")
     if parse_iso(obj["received_at"]) is None:
         raise GuardError("auto-reject: bad received_at: %r"

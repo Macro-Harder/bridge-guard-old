@@ -283,6 +283,23 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(entry["from"], "agent-b")
 
 
+class ReceiptHashTypeTest(unittest.TestCase):
+    """Regression for audit L2 / break-it A5: a receipt whose
+    sha256 was not a string crashed validate_receipt with an
+    uncaught TypeError instead of the clean auto-reject every
+    other malformed receipt gets."""
+
+    def test_non_string_sha256_is_a_clean_rejection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            guard = Guard(Path(tmp) / "guard-home",
+                          {"allow_roots": []})
+            for bad in (123, 4.5, True):
+                with self.assertRaises(GuardError, msg=repr(bad)) \
+                        as ctx:
+                    guard.receipt(receipt(sha256=bad))
+                self.assertIn("sha256", str(ctx.exception))
+
+
 class CorruptStateTest(unittest.TestCase):
     """Regression for audit M6: a corrupt state.json silently
     became an empty state — pending requests and sends vanished
