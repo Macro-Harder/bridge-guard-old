@@ -1,6 +1,7 @@
 import dataclasses
 
 from guard.companion import COMPANION_NAME, companion_offer_for_level
+from guard.levels import LEVEL_PLAID
 from guard.manifest import DESIGN_REVISION
 
 FORMAT_VERSION = 1
@@ -162,12 +163,13 @@ _LEVEL_PICKER = (
         "is never a preset default (section 10). Components: none.",
     ),
     LevelEntry(
-        11,
-        "Level 11: every maximum, plus a monitor agent that watches "
-        "the guard itself.",
-        "Level 11: the level 10 preset plus the monitor-agent "
-        "component (preset_for(11).components == {'monitor-agent'}). "
-        "The monitor is the only component any level adds.",
+        LEVEL_PLAID,
+        "Level 11 (PLAID): every maximum, plus a monitor agent that "
+        "watches the guard itself.",
+        "Level 11 (PLAID): the level 10 preset plus the "
+        "monitor-agent component (preset_for(11).components == "
+        "{'monitor-agent'}). The monitor is the only component any "
+        "level adds.",
     ),
 )
 
@@ -224,7 +226,7 @@ class InstallerPacket:
         if offer is None:
             raise PacketError(
                 "the %s install question is only presented at "
-                "level 11, not at level %d"
+                "PLAID (level 11), not at level %d"
                 % (COMPANION_NAME, self._level))
         if not isinstance(install, bool):
             raise PacketError(

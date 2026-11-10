@@ -826,7 +826,7 @@ def main(argv=None):
     pi.add_argument("--max-bytes", type=int, default=None)
     pi.add_argument("--level", type=int, default=None,
                     help="strictness level 0..11, recorded in the "
-                         "policy (level 11 prompts the "
+                         "policy (PLAID, level 11, prompts the "
                          "trust-but-verify companion install on "
                          "every start while it is missing)")
 

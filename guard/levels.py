@@ -2,6 +2,7 @@ import dataclasses
 
 LEVEL_MIN = 0
 LEVEL_MAX = 11
+LEVEL_PLAID = 11
 
 
 class LevelError(Exception):
@@ -105,7 +106,7 @@ def preset_for(level):
             values[s.name] = s.name != "absolute_trust_enabled"
         else:
             values[s.name] = s.default
-    components = frozenset({"monitor-agent"}) if level == 11 \
+    components = frozenset({"monitor-agent"}) if level == LEVEL_PLAID \
         else frozenset()
     return Preset(level=level, values=values, components=components)
 

@@ -6,17 +6,18 @@ server's tool descriptions and schemas for hidden instructions
 before an agent trusts them. It is not part of this guard and the
 guard works without it.
 
-Two level-11 surfaces live here, and nowhere else:
+Two PLAID surfaces live here, and nowhere else:
 
-- The installer offer. At strictness level 11 (the level 10
-  maximums plus the monitor-agent component) the installer packet
-  presents one additional question -- whether to also install
-  trust-but-verify, carrying its link -- because at level 11 the
-  monitor uses it as its MCP-audit companion. guard.packet asks
-  this module for the offer; the pinned five packet questions and
-  the level presets do not change.
+- The installer offer. At PLAID -- strictness level 11 (the level
+  10 maximums plus the monitor-agent component) the installer
+  packet presents one additional question -- whether to also
+  install trust-but-verify, carrying its link -- because at PLAID
+  the monitor uses it as its MCP-audit companion. guard.packet
+  asks this module for the offer; the pinned five packet
+  questions and the level presets do not change.
 - The startup prompt. On every guard start, if the guard's
-  declared level is 11 and trust-but-verify is not detected
+  declared level is PLAID (11) and trust-but-verify is not
+  detected
   installed, the start prints the install prompt (the question and
   the link) to stderr. The check never blocks a start, never
   installs anything, and is silent at every other level and
@@ -30,12 +31,14 @@ import shutil
 import sys
 from pathlib import Path
 
+from guard.levels import LEVEL_PLAID
+
 COMPANION_NAME = "trust-but-verify"
 COMPANION_URL = "https://github.com/Macro-Harder/trust-but-verify"
 COMPANION_DESCRIPTION = (
     "trust-but-verify audits MCP servers' tool descriptions and "
     "schemas for hidden instructions before an agent trusts them.")
-COMPANION_LEVEL = 11
+COMPANION_LEVEL = LEVEL_PLAID
 
 LEVEL_ENV = "BRIDGE_GUARD_LEVEL"
 PATH_ENV = "TRUST_BUT_VERIFY_PATH"
@@ -44,7 +47,7 @@ BINARY_NAME = "trust-but-verify"
 
 _QUESTION = (
     "Also install trust-but-verify, the guard's MCP-audit "
-    "companion at level 11? It audits MCP servers' tool "
+    "companion at PLAID (level 11)? It audits MCP servers' tool "
     "descriptions and schemas for hidden instructions before an "
     "agent trusts them: " + COMPANION_URL)
 
@@ -109,8 +112,8 @@ def install_prompt(level, detector=None):
     if installed:
         return None
     message = (
-        "bridge-guard: this guard is set to level 11, and its "
-        "MCP-audit companion is not installed.\n"
+        "bridge-guard: this guard is set to PLAID (level 11), "
+        "and its MCP-audit companion is not installed.\n"
         + _QUESTION + "\n"
         "The guard runs without it; the prompt returns on every "
         "start until it is installed.")
