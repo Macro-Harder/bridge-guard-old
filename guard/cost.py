@@ -119,6 +119,13 @@ class CostAccount:
                 "the cost ledger is off for pair %r; %s does not "
                 "run" % (self.pair_id, action))
 
+    @staticmethod
+    def _require_positive(action, value):
+        if isinstance(value, bool) \
+                or not isinstance(value, (int, float)) or value <= 0:
+            raise CostError(
+                "%s needs a positive amount, got %r" % (action, value))
+
     @property
     def suspended(self):
         return self.ledger_on and self.balance <= 0
@@ -209,6 +216,7 @@ class CostAccount:
 
     def refill(self, days=1):
         self._require_on("refill")
+        self._require_positive("refill", days)
         self.balance = min(
             self.ceiling, self.balance + self._daily_refill * days)
         return self.balance
@@ -222,6 +230,7 @@ class CostAccount:
 
     def top_up(self, amount):
         self._require_on("top-up")
+        self._require_positive("top-up", amount)
         # The one credit path (D12/W6): a human top-up changes a
         # balance only, never a parameter.
         self.balance += amount
@@ -229,6 +238,7 @@ class CostAccount:
 
     def accrue_debt(self, amount):
         self._require_on("debt accrual")
+        self._require_positive("debt accrual", amount)
         # Debt is bounded at the floor: at the floor the ledger
         # stops deepening; the response never does (E33).
         self.balance = max(self._debt_floor, self.balance - amount)

@@ -37,6 +37,37 @@ def allocation(**over):
     return a
 
 
+class AmountValidationTest(unittest.TestCase):
+    """Regression for audit M2 / break-it A8a: amounts that move a
+    balance are validated. A negative top-up drained an account; a
+    negative refill or debt accrual ran the same trick backwards."""
+
+    def test_top_up_rejects_non_positive_amounts(self):
+        account = CostAccount("pair-b", allocation())
+        for bad in (-90, -1, 0, True, "5", None):
+            with self.assertRaises(CostError, msg=repr(bad)):
+                account.top_up(bad)
+        self.assertEqual(account.balance, 30)
+
+    def test_top_up_accepts_a_positive_amount(self):
+        account = CostAccount("pair-b", allocation())
+        self.assertEqual(account.top_up(10), 40)
+
+    def test_refill_rejects_non_positive_days(self):
+        account = CostAccount("pair-b", allocation())
+        for bad in (-3, 0, True, "2", None):
+            with self.assertRaises(CostError, msg=repr(bad)):
+                account.refill(bad)
+        self.assertEqual(account.balance, 30)
+
+    def test_accrue_debt_rejects_non_positive_amounts(self):
+        account = CostAccount("pair-b", allocation())
+        for bad in (-10, 0, True, "5", None):
+            with self.assertRaises(CostError, msg=repr(bad)):
+                account.accrue_debt(bad)
+        self.assertEqual(account.balance, 30)
+
+
 class OffByDefaultTest(unittest.TestCase):
     def test_ledger_off_without_allocation(self):
         account = CostAccount("pair-b")
