@@ -102,8 +102,6 @@ def preset_for(level):
                 values[s.name] = False
             else:
                 values[s.name] = None
-        elif isinstance(s.default, bool):
-            values[s.name] = s.name != "absolute_trust_enabled"
         else:
             values[s.name] = s.default
     components = frozenset({"monitor-agent"}) if level == LEVEL_PLAID \

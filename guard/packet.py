@@ -164,12 +164,21 @@ _LEVEL_PICKER = (
     ),
     LevelEntry(
         LEVEL_PLAID,
-        "Level 11 (PLAID): every maximum, plus a monitor agent that "
-        "watches the guard itself.",
+        "Level 11 (PLAID): every maximum, plus a monitor agent "
+        "that watches the guard itself, and trust-but-verify -- "
+        "an auditor that checks MCP servers' tool descriptions "
+        "and schemas for hidden instructions before your agent "
+        "trusts them.",
         "Level 11 (PLAID): the level 10 preset plus the "
         "monitor-agent component (preset_for(11).components == "
-        "{'monitor-agent'}). The monitor is the only component any "
-        "level adds.",
+        "{'monitor-agent'}): an agent that watches the guard's "
+        "own operation. Its MCP-audit companion is "
+        "trust-but-verify, which audits MCP servers' tool "
+        "descriptions and schemas for hidden instructions before "
+        "an agent trusts them; the installer asks whether to "
+        "install it, and a PLAID guard prompts for it on every "
+        "start while it is missing. The monitor is the only "
+        "component any level adds.",
     ),
 )
 
