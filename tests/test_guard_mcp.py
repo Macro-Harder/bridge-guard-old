@@ -47,5 +47,40 @@ class NonObjectInputTest(unittest.TestCase):
                 "bridge-guard")
 
 
+class PingAndMalformedInputTest(unittest.TestCase):
+    """Regression for audit L5 / break-it A10: ping requests were
+    swallowed with notifications and never answered, and malformed
+    JSON lines vanished without a trace."""
+
+    def test_ping_is_answered_and_malformed_json_is_logged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = run_mcp(Path(tmp) / "home", [
+                '{"jsonrpc": "2.0", "id": 7, "method": "ping"}',
+                '{"jsonrpc": "2.0", "method": ',
+                '{"jsonrpc": "2.0", "id": 8, "method": '
+                '"initialize", "params": {}}',
+            ])
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            replies = [json.loads(line)
+                       for line in proc.stdout.splitlines()]
+            self.assertEqual([reply["id"] for reply in replies],
+                             [7, 8])
+            self.assertEqual(replies[0]["result"], {})
+            self.assertIn("malformed JSON", proc.stderr)
+
+    def test_notifications_still_get_no_reply(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = run_mcp(Path(tmp) / "home", [
+                '{"jsonrpc": "2.0", "method": '
+                '"notifications/initialized"}',
+                '{"jsonrpc": "2.0", "id": 9, "method": '
+                '"initialize", "params": {}}',
+            ])
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            replies = [json.loads(line)
+                       for line in proc.stdout.splitlines()]
+            self.assertEqual([reply["id"] for reply in replies], [9])
+
+
 if __name__ == "__main__":
     unittest.main()

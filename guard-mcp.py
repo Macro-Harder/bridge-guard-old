@@ -153,7 +153,10 @@ def main():
     for line in sys.stdin:
         try:
             msg = json.loads(line)
-        except Exception:
+        except Exception as e:
+            sys.stderr.write(
+                "guard-mcp: ignoring malformed JSON line (%s)\n" % e)
+            sys.stderr.flush()
             continue
         if not isinstance(msg, dict):
             continue
@@ -185,7 +188,10 @@ def main():
                     "content": [{"type": "text",
                                  "text": "guard error: %s" % e}],
                     "isError": True}})
-        elif method in ("notifications/initialized", "ping"):
+        elif method == "ping":
+            if rid is not None:
+                send({"jsonrpc": "2.0", "id": rid, "result": {}})
+        elif method == "notifications/initialized":
             continue
         else:
             send({"jsonrpc": "2.0", "id": rid, "error": {
