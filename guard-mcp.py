@@ -131,11 +131,21 @@ def call_tool(guard, name, args):
     if name == "guard_status":
         return guard.status()
     if name == "guard_log":
-        n = args.get("n") or 20
+        n = args.get("n", 20)
+        if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+            n = 20
+        n = min(n, 1000)
         if not guard.log_path.exists():
             return {"entries": []}
-        lines = guard.log_path.read_text().splitlines()
-        return {"entries": [json.loads(l) for l in lines[-n:]]}
+        entries = []
+        for line in guard.log_path.read_text().splitlines():
+            if not line.strip():
+                continue
+            try:
+                entries.append(json.loads(line))
+            except ValueError:
+                continue
+        return {"entries": entries[-n:]}
     raise GuardError("unknown tool: %s" % name)
 
 

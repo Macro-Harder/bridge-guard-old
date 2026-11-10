@@ -82,5 +82,42 @@ class PingAndMalformedInputTest(unittest.TestCase):
             self.assertEqual([reply["id"] for reply in replies], [9])
 
 
+class GuardLogToolTest(unittest.TestCase):
+    """Regression for audit L6: guard_log parsed the requested
+    tail with one list comprehension, so a single corrupt line
+    failed the whole tool, and a non-integer n crashed or sliced
+    the log in surprising ways."""
+
+    def call_log(self, home, arguments):
+        request = {"jsonrpc": "2.0", "id": 5, "method": "tools/call",
+                   "params": {"name": "guard_log",
+                              "arguments": arguments}}
+        proc = run_mcp(home, [json.dumps(request)])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        reply = json.loads(proc.stdout.strip().splitlines()[0])
+        result = reply["result"]
+        self.assertNotIn("isError", result)
+        return json.loads(result["content"][0]["text"])
+
+    def test_corrupt_lines_are_skipped_and_n_is_validated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            entries = [{"event": "e%d" % i} for i in range(5)]
+            lines = [json.dumps(entry) for entry in entries]
+            lines.insert(4, '{"event": "torn"')
+            (home / "guard-log.jsonl").write_text(
+                "\n".join(lines) + "\n")
+            self.assertEqual(
+                self.call_log(home, {"n": 3})["entries"],
+                entries[2:])
+            self.assertEqual(
+                self.call_log(home, {"n": "3"})["entries"], entries)
+            self.assertEqual(
+                self.call_log(home, {"n": -1})["entries"], entries)
+            self.assertEqual(
+                self.call_log(home, {})["entries"], entries)
+
+
 if __name__ == "__main__":
     unittest.main()
