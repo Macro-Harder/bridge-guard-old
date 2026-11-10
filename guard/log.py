@@ -742,19 +742,15 @@ class LogService:
         self._head = GENESIS_PREV_HASH
         self._count = 0
         if os.path.exists(self._path):
-            with open(self._path, "r", encoding="utf-8") as handle:
-                for line in handle:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        record = json.loads(line)
-                    except ValueError:
-                        raise ChainError(
-                            "existing log %s has an unreadable entry"
-                            % (self._path,)) from None
-                    self._head = record["hash"]
-                    self._count += 1
+            # Extending a chain means vouching for it: the whole
+            # existing log is verified (hashes, chain links,
+            # schemas, signatures) before the first new entry is
+            # accepted, and a log that does not verify is refused
+            # here, not silently built upon.
+            events = verify_log(self._path, self._public_keys)
+            self._count = len(events)
+            if events:
+                self._head = events[-1].hash
         _OPEN_LOGS.add(self._key)
 
     def submit(self, event, signer, signature, second_signature=None):

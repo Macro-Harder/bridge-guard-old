@@ -435,6 +435,73 @@ class SchemaTest(LogTestBase):
         self.assertNotIn("approve", accepted_types)
 
 
+class ExistingLogVerificationTest(unittest.TestCase):
+    """Regression for audit M5: LogService used to extend an
+    existing log by trusting its last line's claimed hash, without
+    verifying anything. A tampered log was silently built upon.
+    Opening a log now verifies the whole existing chain first and
+    refuses a log that does not verify."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.log_path = Path(self.tmp.name) / "guard.log.jsonl"
+        self.keys = {role: generate_key() for role in ROLES}
+        self.public = {role: key.public_key
+                       for role, key in self.keys.items()}
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _write_entries(self, count=1):
+        service = LogService(self.log_path, self.public)
+        for i in range(count):
+            event = request_event(id="evt-%d" % i)
+            service.submit(event, "communicator",
+                           sign_event(self.keys["communicator"], event))
+        service.close()
+
+    def test_reopen_of_a_valid_log_still_works(self):
+        self._write_entries(1)
+        service = LogService(self.log_path, self.public)
+        event = request_event(id="evt-next")
+        service.submit(event, "communicator",
+                       sign_event(self.keys["communicator"], event))
+        service.close()
+        self.assertEqual(len(verify_log(self.log_path, self.public)),
+                         2)
+
+    def test_tampered_existing_log_is_refused_at_open(self):
+        import json
+        self._write_entries(1)
+        record = json.loads(self.log_path.read_text().splitlines()[0])
+        record["fields"]["size"] = 999
+        self.log_path.write_text(json.dumps(record, sort_keys=True)
+                                 + "\n")
+        with self.assertRaises(ChainError):
+            LogService(self.log_path, self.public)
+
+    def test_unreadable_tail_is_refused_at_open(self):
+        self._write_entries(1)
+        with open(self.log_path, "a", encoding="utf-8") as handle:
+            handle.write('{"id": "evt-torn", "type": "req')
+        with self.assertRaises(ChainError):
+            LogService(self.log_path, self.public)
+
+    def test_refusal_leaves_the_path_unregistered(self):
+        import json
+        self._write_entries(1)
+        record = json.loads(self.log_path.read_text().splitlines()[0])
+        record["fields"]["size"] = 999
+        self.log_path.write_text(json.dumps(record, sort_keys=True)
+                                 + "\n")
+        with self.assertRaises(ChainError):
+            LogService(self.log_path, self.public)
+        # A refused open must not hold the single-writer slot: a
+        # second attempt fails the same way, not with WriterError.
+        with self.assertRaises(ChainError):
+            LogService(self.log_path, self.public)
+
+
 class PublicKeyCannotForgeTest(LogTestBase):
     """Regression for audit C2 / break-it A2: the log's "public"
     key must carry no signing power. Before the Ed25519 swap,
