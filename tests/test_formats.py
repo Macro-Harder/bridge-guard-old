@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import guard.formats as formats
+from guard import roles
 
 SHA = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
 REQ1_ID = "req-3f9a1c7e5b2d8046a1c3e5f7092b4d68"
@@ -240,9 +241,42 @@ class OriginTests(FormatsTestCase):
         self.assertEqual(verdict.outcome, "pre-approved-transfer")
 
     def test_relayed_origin_carries_its_own_signature(self):
-        origin = {"id": "agent-c", "epoch": 3, "sig": "b3JpZ2lu"}
-        verdict = gate(format1(origin=origin))
+        kp = roles.generate_keypair()
+        msg = format1()
+        body = dict(msg, origin={"id": "agent-c", "epoch": 3})
+        origin = {"id": "agent-c", "epoch": 3,
+                  "sig": roles.sign(kp.secret, body)}
+        verdict = gate(format1(origin=origin),
+                       origin_keys={"agent-c": kp.public})
         self.assertEqual(verdict.outcome, "pre-approved-transfer")
+
+    def test_relayed_origin_with_forged_signature_is_rejected(self):
+        # Regression for audit M1 / break-it A3: a relayed origin
+        # whose sig is not the origin's signature over this message
+        # must not pass the gate.
+        origin = {"id": "agent-c", "epoch": 3, "sig": "forged"}
+        self.assertRejection(gate(
+            format1(origin=origin),
+            origin_keys={"agent-c": roles.generate_keypair().public}))
+
+    def test_relayed_origin_without_a_known_key_is_rejected(self):
+        kp = roles.generate_keypair()
+        msg = format1()
+        body = dict(msg, origin={"id": "agent-c", "epoch": 3})
+        origin = {"id": "agent-c", "epoch": 3,
+                  "sig": roles.sign(kp.secret, body)}
+        self.assertRejection(gate(format1(origin=origin)))
+        self.assertRejection(gate(format1(origin=origin),
+                                  origin_keys={}))
+
+    def test_relayed_origin_signature_binds_the_message(self):
+        kp = roles.generate_keypair()
+        body = dict(format1(), origin={"id": "agent-c", "epoch": 3})
+        origin = {"id": "agent-c", "epoch": 3,
+                  "sig": roles.sign(kp.secret, body)}
+        moved = format1(path="notes/other.md", origin=origin)
+        self.assertRejection(gate(
+            moved, origin_keys={"agent-c": kp.public}))
 
     def test_relayed_origin_without_a_signature_is_rejected(self):
         origin = {"id": "agent-c", "epoch": 3}

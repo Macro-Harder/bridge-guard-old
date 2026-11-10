@@ -5,6 +5,8 @@ import hmac
 import json
 import re
 
+from guard import roles
+
 SUPPORTED_VERSION = 1
 
 _FORMAT1_KIND = "pre-approved-transfer"
@@ -134,7 +136,7 @@ def sha256_matches(claimed, reference):
                                reference.encode("utf-8"))
 
 
-def _origin_problem(origin, sender):
+def _origin_problem(origin, sender, msg=None, origin_keys=None):
     if not isinstance(origin, dict):
         return "origin must be an object"
     keys = set(origin)
@@ -148,12 +150,28 @@ def _origin_problem(origin, sender):
         return "origin epoch must be an integer"
     if "sig" in origin and not isinstance(origin["sig"], str):
         return "origin sig must be a string"
-    if origin["id"] != sender and "sig" not in origin:
+    if origin["id"] == sender:
+        return None
+    if "sig" not in origin:
         return "a relayed origin must carry its own signature"
+    # A relayed origin is a claim about a third party, and a claim
+    # is only as good as its signature: the origin signs the message
+    # with its own origin entry reduced to {id, epoch}, and the gate
+    # verifies that signature against the origin's key on record.
+    # With no key on record the claim cannot be verified, and an
+    # unverifiable origin is rejected, never taken on faith.
+    public = (origin_keys or {}).get(origin["id"])
+    if public is None:
+        return "a relayed origin cannot be verified: no key on " \
+               "record for %r" % (origin["id"],)
+    body = dict(msg)
+    body["origin"] = {"id": origin["id"], "epoch": origin["epoch"]}
+    if not roles.verify(public, body, origin["sig"]):
+        return "a relayed origin signature does not verify"
     return None
 
 
-def _format_problem(msg, kind, sender):
+def _format_problem(msg, kind, sender, origin_keys=None):
     if kind == _FORMAT1_KIND:
         required = _FORMAT1_KEYS
         allowed = _FORMAT1_KEYS | {"origin"}
@@ -186,7 +204,8 @@ def _format_problem(msg, kind, sender):
                 and not _is_request_id(msg["supersedes"]):
             return "supersedes must name a request id"
     if "origin" in msg:
-        return _origin_problem(msg["origin"], sender)
+        return _origin_problem(msg["origin"], sender, msg,
+                               origin_keys)
     return None
 
 
@@ -248,7 +267,7 @@ def _protocol_ok(msg):
     return keys == allowed
 
 
-def validate(envelope, *, verified_from, own_side):
+def validate(envelope, *, verified_from, own_side, origin_keys=None):
     if not isinstance(envelope, dict):
         return _drop()
     if set(envelope) != {"msg", "sig"}:
@@ -274,7 +293,8 @@ def validate(envelope, *, verified_from, own_side):
         declared = kind if kind in (_FORMAT1_KIND, _FORMAT2_KIND) \
             else None
         if declared is not None:
-            problem = _format_problem(msg, declared, verified_from)
+            problem = _format_problem(msg, declared, verified_from,
+                                      origin_keys)
             if problem is None:
                 return Verdict(declared, message=msg)
             return _rejection(msg, verified_from, own_side, declared,
