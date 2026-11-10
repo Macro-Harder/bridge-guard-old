@@ -10,7 +10,7 @@ files. The bridge works fine without it.
 ```bash
 git clone https://github.com/Macro-Harder/bridge-guard
 cd bridge-guard
-python3 -m unittest tests.test_guard   # should be 34 green
+python3 -m unittest discover -s tests   # should be 564 green
 ```
 
 Requirements: Python 3.10+, nothing else. No packages, no keys,
@@ -44,6 +44,21 @@ Policy knobs in `policy.json` (edit the file, no command needed):
 | `ttl_seconds` | 3600 | Unclaimed staged copies are deleted after this long. |
 | `level` | (unset) | Strictness level 0–11 declared at install (or `$BRIDGE_GUARD_LEVEL`). At PLAID (level 11), every guard start prompts the trust-but-verify install while it is missing (see below). |
 
+**Beyond the file policy.** The `guard/` package also ships the
+systems the level declaration selects: `guard/levels.py` defines
+strictness levels 0–11 and their presets, and `guard/packet.py`
+is the installer packet — five questions, a level choice,
+validated setting overrides, and the declaration an install
+records. `guard/manifest.py` compares two sides' declarations
+and resolves the shared level and governing values for a
+connection. `guard/case.py` and `guard/proposals.py` carry the
+case flow for tool and skill proposals. `guard/cost.py` is the
+per-pair cost ledger, `guard/roles.py` holds role keys and
+certificates, `guard/log.py` is the signed, hash-chained log,
+`guard/formats.py` validates bridge message formats, and
+`guard/receipts.py` with `guard/transfer.py` track receipts and
+move copies through guarded folders.
+
 **PLAID companion.** PLAID (level 11) takes an extra step: the
 installer packet asks whether to also install
 [trust-but-verify](https://github.com/Macro-Harder/trust-but-verify),
@@ -54,8 +69,9 @@ MCP-audit companion. Declare the level at init
 (`python3 guard.py --home ~/.bridge-guard init --level 11 ...`)
 or by setting `level` in `policy.json`. While a PLAID guard
 cannot detect trust-but-verify (via `$TRUST_BUT_VERIFY_PATH`, an
-importable `trust_but_verify` module, or a `trust-but-verify`
-binary), every start prints the install prompt to stderr. The
+importable `trust_but_verify` module, a `trust-but-verify`
+binary, or a sibling checkout or venv install beside this
+project), every start prints the install prompt to stderr. The
 prompt is informational only — it never blocks or installs.
 
 ## Harness variant — AgenC

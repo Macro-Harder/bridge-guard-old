@@ -158,18 +158,31 @@ Events: `request`, `auto-reject`, `approve`, `reject`, `staged`,
 |---|---|
 | `guard.py` | Guardian engine + CLI (stdlib only) |
 | `guard-mcp.py` | Guardian as an MCP server (agent variant) |
+| `guard/case.py` | Case flow for tool and skill proposals |
+| `guard/companion.py` | PLAID trust-but-verify offer and startup prompt |
+| `guard/cost.py` | Per-pair cost ledger, escrow stakes, and case quota |
+| `guard/ed25519.py` | Pure-Python Ed25519 signatures (RFC 8032) |
+| `guard/formats.py` | Bridge message-format validation |
+| `guard/levels.py` | Strictness levels 0–11, presets, and resolution |
+| `guard/log.py` | Signed, hash-chained guard log |
+| `guard/manifest.py` | Pair declarations and the connection manifest |
+| `guard/packet.py` | Installer packet: level, questions, and overrides |
+| `guard/proposals.py` | Tool and skill proposal desk |
+| `guard/receipts.py` | Transfer receipt tracking |
+| `guard/roles.py` | Role keys, certificates, and the trust book |
+| `guard/transfer.py` | Guarded folder transfers and the kill switch |
 | `guardian-skill/` | Skill + system prompt for the agent that plays guardian |
 | `harness/` | AgenC hook example + harness-variant notes |
 | `demo/live_demo.py` | Two-agent exchange + attacks, runnable |
 | `SETUP.md` | Install, setup per agent (AgenC, Muse, Grok Bot) |
 | `INTEGRATION.md` | How it latches onto the AgenC Bridge |
-| `tests/test_guard.py` | Unit tests |
+| `tests/` | Full unit-test suite |
 
 ## Tests
 
 ```bash
-python3 -m unittest tests.test_guard -v   # 34 tests
-python3 demo/live_demo.py                 # end-to-end + attacks
+python3 -m unittest discover -s tests   # 564 tests
+python3 demo/live_demo.py               # end-to-end + attacks
 ```
 
 ## Companion at PLAID: trust-but-verify
@@ -194,7 +207,8 @@ monitor uses it as its MCP-audit companion.
 - Declare the level with `guard.py init --level 11`, the
   `level` key in `policy.json`, or `$BRIDGE_GUARD_LEVEL`.
   Detection checks `$TRUST_BUT_VERIFY_PATH`, an importable
-  `trust_but_verify` module, or a `trust-but-verify` binary.
+  `trust_but_verify` module, a `trust-but-verify` binary, or a
+  sibling checkout or venv install beside this project.
 
 ## A DLC, not a fork
 
