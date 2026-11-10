@@ -171,10 +171,14 @@ class CostAccount:
 
     def escrow_stake(self, request_id):
         existing = self._escrows.get(request_id)
-        if existing is not None and existing == "escrowed":
+        if existing is not None:
+            # A case id escrows exactly once, whatever became of
+            # the stake: re-escrowing a settled case would let one
+            # case burn (or refund) a second stake.
             raise CostError(
-                "case %r already has a stake escrowed"
-                % (request_id,))
+                "case %r already has an escrow record (%s); a "
+                "case id escrows exactly once"
+                % (request_id, existing))
         if self.ledger_on:
             if self.balance < self._stake:
                 raise CostError(

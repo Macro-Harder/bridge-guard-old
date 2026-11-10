@@ -68,6 +68,37 @@ class AmountValidationTest(unittest.TestCase):
         self.assertEqual(account.balance, 30)
 
 
+class EscrowIdempotenceTest(unittest.TestCase):
+    """Regression for audit M3 / break-it A8b: one case id escrows
+    exactly once. After a burn, the same id could escrow and burn
+    a second stake for the same case."""
+
+    def test_burned_case_cannot_escrow_or_burn_again(self):
+        account = CostAccount("pair-b", allocation())
+        account.escrow_stake("req-1")
+        account.settle_case("req-1", "refusal",
+                            junk_class="known-bad-hash")
+        balance = account.balance
+        with self.assertRaises(CostError):
+            account.escrow_stake("req-1")
+        self.assertEqual(account.balance, balance)
+        self.assertEqual(account.escrow_state("req-1"), "burned")
+
+    def test_refunded_case_cannot_escrow_again(self):
+        account = CostAccount("pair-b", allocation())
+        account.escrow_stake("req-1")
+        account.settle_case("req-1", "approved")
+        with self.assertRaises(CostError):
+            account.escrow_stake("req-1")
+
+    def test_distinct_cases_still_escrow(self):
+        account = CostAccount("pair-b", allocation())
+        account.escrow_stake("req-1")
+        account.settle_case("req-1", "refusal",
+                            junk_class="known-bad-hash")
+        self.assertEqual(account.escrow_stake("req-2"), 7)
+
+
 class OffByDefaultTest(unittest.TestCase):
     def test_ledger_off_without_allocation(self):
         account = CostAccount("pair-b")
