@@ -150,7 +150,9 @@ class CostAccount:
                 return 0
             kind = "excess_message"
         amount = self.price(kind)
-        self.balance -= amount
+        # The balance stops at the debt floor, exactly as debt
+        # accrual does: at the floor the ledger stops deepening.
+        self.balance = max(self._debt_floor, self.balance - amount)
         return amount
 
     def admit_case(self, day=0):

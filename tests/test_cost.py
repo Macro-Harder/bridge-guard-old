@@ -99,6 +99,23 @@ class EscrowIdempotenceTest(unittest.TestCase):
         self.assertEqual(account.escrow_stake("req-2"), 7)
 
 
+class ChargeFloorTest(unittest.TestCase):
+    """Regression for audit L3: charge() had no floor, so a
+    balance could fall without bound; debt accrual already stops
+    at the pair's debt floor, and charges now stop there too."""
+
+    def test_charge_stops_at_the_debt_floor(self):
+        account = CostAccount("pair-b", allocation())
+        for _ in range(30):
+            account.charge("case")
+        self.assertEqual(account.balance, -50)
+
+    def test_charge_above_the_floor_is_unchanged(self):
+        account = CostAccount("pair-b", allocation())
+        self.assertEqual(account.charge("case"), 7)
+        self.assertEqual(account.balance, 23)
+
+
 class OffByDefaultTest(unittest.TestCase):
     def test_ledger_off_without_allocation(self):
         account = CostAccount("pair-b")
