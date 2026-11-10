@@ -223,6 +223,18 @@ class OverridesTest(unittest.TestCase):
         self.assertEqual(packet.declaration()["overrides"],
                          {"manager_review_enabled": False})
 
+    def test_an_unknown_override_is_rejected(self):
+        packet = default_packet()
+        with self.assertRaises(PacketError):
+            packet.set_override("manager_review_enabeld", False)
+        self.assertEqual(packet.declaration()["overrides"], {})
+
+    def test_a_non_string_override_name_is_rejected(self):
+        packet = default_packet()
+        with self.assertRaises(PacketError):
+            packet.set_override(["manager_review_enabled"], False)
+        self.assertEqual(packet.declaration()["overrides"], {})
+
     def test_an_override_does_not_replace_the_packet(self):
         packet = default_packet()
         packet.answer("boss_form", "separate-agent")

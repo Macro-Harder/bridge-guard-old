@@ -1,7 +1,7 @@
 import dataclasses
 
 from guard.companion import COMPANION_NAME, companion_offer_for_level
-from guard.levels import LEVEL_PLAID
+from guard.levels import LEVEL_PLAID, LevelError, setting
 from guard.manifest import DESIGN_REVISION
 
 FORMAT_VERSION = 1
@@ -225,6 +225,14 @@ class InstallerPacket:
         self._level = level
 
     def set_override(self, name, value):
+        if not isinstance(name, str):
+            raise PacketError(
+                "override name must be a setting name, got %r"
+                % (name,))
+        try:
+            setting(name)
+        except LevelError as e:
+            raise PacketError(str(e)) from None
         self._overrides[name] = value
 
     def companion_offer(self):
