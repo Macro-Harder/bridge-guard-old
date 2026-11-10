@@ -103,6 +103,21 @@ class LevelPickerTest(unittest.TestCase):
             self.assertIn(str(e.level), e.agent_text, e.level)
 
 
+class PlaidNameTest(unittest.TestCase):
+    def test_level_plaid_is_the_top_level(self):
+        from guard.levels import LEVEL_PLAID
+        self.assertEqual(LEVEL_PLAID, 11)
+        self.assertEqual(LEVEL_PLAID,
+                         max(e.level for e in level_picker()))
+
+    def test_plaid_picker_texts_name_plaid(self):
+        from guard.levels import LEVEL_PLAID
+        entry = [e for e in level_picker()
+                 if e.level == LEVEL_PLAID][0]
+        self.assertIn("PLAID", entry.human_text)
+        self.assertIn("PLAID", entry.agent_text)
+
+
 class PacketAnswersTest(unittest.TestCase):
     def test_choosing_nothing_yields_the_all_defaults_packet(self):
         decl = default_packet().declaration()

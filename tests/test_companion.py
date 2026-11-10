@@ -57,6 +57,10 @@ class CompanionOfferTest(unittest.TestCase):
         self.assertIn("mcp", text)
         self.assertIn("hidden instructions", text)
 
+    def test_offer_names_the_plaid_level(self):
+        offer = companion.companion_offer_for_level(11)
+        self.assertIn("PLAID", offer.question)
+
     def test_offer_options_and_default(self):
         offer = companion.companion_offer_for_level(11)
         self.assertEqual(set(offer.options), {"install", "skip"})
