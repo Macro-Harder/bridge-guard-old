@@ -283,5 +283,35 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(entry["from"], "agent-b")
 
 
+class ReplayWindowTest(unittest.TestCase):
+    """Regression for audit M4 / break-it A11: the replay guard
+    kept seen request ids in a state list trimmed to the last
+    1,000, so an id replayed after 1,000 intervening intakes was
+    accepted as new. Seen ids are now also kept in an append-only
+    record that is never trimmed, and the guard checks both."""
+
+    def test_replay_after_a_thousand_intakes_is_still_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "guard-home"
+            guard = Guard(home, {"allow_roots": [],
+                                 "max_requests_per_hour": 100000})
+            guard.intake(req(id="req-first"))
+            for i in range(1001):
+                guard.intake(req(id="req-%04d" % i))
+            with self.assertRaises(GuardError) as ctx:
+                guard.intake(req(id="req-first"))
+            self.assertIn("duplicate", str(ctx.exception))
+
+    def test_fresh_ids_still_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "guard-home"
+            guard = Guard(home, {"allow_roots": [],
+                                 "max_requests_per_hour": 100000})
+            guard.intake(req(id="req-a"))
+            guard.intake(req(id="req-b"))
+            with self.assertRaises(GuardError):
+                guard.intake(req(id="req-a"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -268,6 +268,7 @@ class Guard:
         self.home = Path(home).expanduser()
         self.shared = self.home / "shared"
         self.log_path = self.home / "guard-log.jsonl"
+        self.seen_ids_path = self.home / "seen-ids.jsonl"
         self.state_path = self.home / "state.json"
         self.policy_path = self.home / "policy.json"
         self.policy = dict(DEFAULT_POLICY)
@@ -311,6 +312,26 @@ class Guard:
         tmp.write_text(json.dumps(state, indent=2))
         os.replace(tmp, self.state_path)
 
+    # The replay guard's memory. The seen-id list inside state is
+    # a bounded cache (trimmed to the last 1,000); on its own it
+    # forgets, and a forgotten id replays as new. So every accepted
+    # request id is also appended to seen-ids.jsonl — an append-only
+    # record that is NEVER trimmed — and the duplicate check reads
+    # both. The bound is deliberate: one short line per accepted
+    # request, growing with the request history the rate limiter
+    # already paces; the replay window never reopens.
+    def _recorded_seen_ids(self):
+        try:
+            text = self.seen_ids_path.read_text()
+        except OSError:
+            return set()
+        return {line.strip() for line in text.splitlines()
+                if line.strip()}
+
+    def _record_seen_id(self, request_id):
+        with open(self.seen_ids_path, "a") as f:
+            f.write(request_id + "\n")
+
     def log(self, event, **fields):
         """Append one JSONL line. The log is append-only; the guard
         never edits a prior line."""
@@ -352,7 +373,8 @@ class Guard:
             raise GuardError(
                 "auto-reject: sender does not match from field")
         state = self._load_state()
-        if req["id"] in state["seen_ids"]:
+        if req["id"] in state["seen_ids"] \
+                or req["id"] in self._recorded_seen_ids():
             self.log("auto-reject", id=req["id"], from_=req["from"],
                      reason="auto-reject: duplicate request id (replay)")
             raise GuardError("auto-reject: duplicate request id (replay)")
@@ -371,6 +393,7 @@ class Guard:
                                       for t in stamps]
         state["seen_ids"].append(req["id"])
         state["seen_ids"] = state["seen_ids"][-1000:]
+        self._record_seen_id(req["id"])
         state["requests"][req["id"]] = dict(req, status="pending",
                                             decided_by=None,
                                             decision_reason=None)
