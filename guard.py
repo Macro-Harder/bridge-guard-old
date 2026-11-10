@@ -32,6 +32,9 @@ guardrails.
 """
 
 import argparse
+import contextlib
+import fcntl
+import functools
 import hashlib
 import json
 import os
@@ -255,6 +258,14 @@ DEFAULT_POLICY = {
 }
 
 
+def _locked(method):
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._state_lock():
+            return method(self, *args, **kwargs)
+    return wrapper
+
+
 class Guard:
     """One side's guardian. Holds its policy, its shared (staging)
     folder, its append-only log, and its state file.
@@ -290,22 +301,67 @@ class Guard:
 
     # -- persistence ------------------------------------------------
 
+    def _preserve_corrupt_state(self):
+        candidate = self.state_path.with_name("state.json.corrupt")
+        n = 1
+        while candidate.exists():
+            n += 1
+            candidate = self.state_path.with_name(
+                "state.json.corrupt-%d" % n)
+        os.replace(self.state_path, candidate)
+        return candidate
+
     def _load_state(self):
         if not self.state_path.exists():
             return {"requests": {}, "sends": {}, "seen_ids": [],
                     "rate": {}}
         try:
             state = json.loads(self.state_path.read_text())
-            if isinstance(state, dict):
-                state.setdefault("requests", {})
-                state.setdefault("sends", {})
-                state.setdefault("seen_ids", [])
-                state.setdefault("rate", {})
-                return state
         except Exception:
-            pass
-        return {"requests": {}, "sends": {}, "seen_ids": [],
-                "rate": {}}
+            state = None
+        if not isinstance(state, dict):
+            # A corrupt state file is an incident, not a fresh
+            # start: silently inventing an empty state would make
+            # pending requests and sends vanish without a trace.
+            # Preserve the bytes and refuse, loudly.
+            preserved = self._preserve_corrupt_state()
+            raise GuardError(
+                "state file %s is corrupt; its bytes are preserved "
+                "at %s and the guard refuses to invent an empty "
+                "state" % (self.state_path, preserved))
+        state.setdefault("requests", {})
+        state.setdefault("sends", {})
+        state.setdefault("seen_ids", [])
+        state.setdefault("rate", {})
+        return state
+
+    @contextlib.contextmanager
+    def _state_lock(self):
+        # One guard at a time runs a load -> change -> save cycle
+        # on the state file, across processes: without the lock
+        # two guards overwrite each other's changes wholesale.
+        # The write itself is already atomic (tmp + os.replace);
+        # this lock serializes the cycle it feeds. Re-entrant per
+        # instance, so a method may call another locked method.
+        depth = getattr(self, "_lock_depth", 0)
+        if depth:
+            self._lock_depth = depth + 1
+            try:
+                yield
+            finally:
+                self._lock_depth = depth
+            return
+        fd = os.open(self.home / "state.lock",
+                     os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            self._lock_depth = 1
+            try:
+                yield
+            finally:
+                self._lock_depth = 0
+        finally:
+            os.close(fd)
 
     def _save_state(self, state):
         tmp = self.state_path.with_suffix(".tmp")
@@ -350,6 +406,7 @@ class Guard:
 
     # -- intake: the prompt-injection gate --------------------------
 
+    @_locked
     def intake(self, obj, sender=None):
         """Validate a file request and record it as pending policy.
 
@@ -473,6 +530,7 @@ class Guard:
 
     # -- guardian decision ------------------------------------------
 
+    @_locked
     def decide(self, request_id, approver, approve, reason=""):
         """The guardian's decision. Returns the stored request.
 
@@ -530,6 +588,7 @@ class Guard:
 
     # -- staging, sending, receipts ---------------------------------
 
+    @_locked
     def stage(self, request_id):
         """Copy the approved file into the shared folder. Returns
         (send_id, staged_path, sha256). Only a copy is ever sent —
@@ -578,6 +637,7 @@ class Guard:
                  filename=resolved.name, sha256=digest)
         return send_id, str(staged_path), digest
 
+    @_locked
     def mark_sent(self, send_id):
         """The main agent calls this once the staged copy's bytes
         have been transmitted. Appends the send log entry."""
@@ -596,6 +656,7 @@ class Guard:
                  filename=send["filename"], sha256=send["sha256"])
         return dict(send)
 
+    @_locked
     def receipt(self, obj):
         """Process a received receipt. The receipt must carry the
         same SHA-256 as the staged copy; on a match the copy is
@@ -643,6 +704,7 @@ class Guard:
                  reason="staged copy deleted after matching receipt")
         return dict(send)
 
+    @_locked
     def sweep(self):
         """Delete staged copies older than the TTL. Returns the
         list of expired send ids."""

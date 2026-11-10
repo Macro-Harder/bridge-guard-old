@@ -283,6 +283,64 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(entry["from"], "agent-b")
 
 
+class CorruptStateTest(unittest.TestCase):
+    """Regression for audit M6: a corrupt state.json silently
+    became an empty state — pending requests and sends vanished
+    without a trace. Corruption now fails loud, the corrupt bytes
+    are preserved beside the state file, and state changes run
+    under an inter-process lock so two guards cannot lost-update
+    each other."""
+
+    def test_corrupt_state_fails_loud_and_is_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "guard-home"
+            guard = Guard(home, {"allow_roots": []})
+            guard.intake(req(id="req-a"))
+            (home / "state.json").write_text("{corrupt")
+            with self.assertRaises(GuardError) as ctx:
+                guard.intake(req(id="req-b"))
+            self.assertIn("corrupt", str(ctx.exception))
+            preserved = [p for p in home.iterdir()
+                         if p.name.startswith("state.json.corrupt")]
+            self.assertEqual(len(preserved), 1)
+            self.assertEqual(preserved[0].read_text(), "{corrupt")
+            self.assertFalse((home / "state.json").exists())
+
+    def test_non_object_state_fails_loud(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "guard-home"
+            guard = Guard(home, {"allow_roots": []})
+            (home / "state.json").write_text("[1, 2]")
+            with self.assertRaises(GuardError):
+                guard.status()
+
+    def test_concurrent_guards_do_not_lose_intakes(self):
+        import threading
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "guard-home"
+            errors = []
+
+            def worker(tag):
+                try:
+                    guard = Guard(home, {
+                        "allow_roots": [],
+                        "max_requests_per_hour": 100000})
+                    for i in range(15):
+                        guard.intake(req(id="req-%s-%02d" % (tag, i)))
+                except Exception as e:  # collected, asserted below
+                    errors.append(e)
+
+            threads = [threading.Thread(target=worker, args=(t,))
+                       for t in "abcd"]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            self.assertEqual(errors, [])
+            guard = Guard(home, {"allow_roots": []})
+            self.assertEqual(guard.status()["pending_requests"], 60)
+
+
 class ReplayWindowTest(unittest.TestCase):
     """Regression for audit M4 / break-it A11: the replay guard
     kept seen request ids in a state list trimmed to the last
