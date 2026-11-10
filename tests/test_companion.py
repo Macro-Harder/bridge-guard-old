@@ -171,6 +171,48 @@ class StartupPromptTest(unittest.TestCase):
             env = {"TRUST_BUT_VERIFY_PATH": str(Path(tmp) / "nope")}
             self.assertFalse(companion.default_detector(environ=env))
 
+    def _anchor_with_sibling(self, tmp, sibling_files):
+        root = Path(tmp)
+        anchor = root / "bridge-guard" / "guard" / "companion.py"
+        anchor.parent.mkdir(parents=True)
+        anchor.write_text("")
+        sibling = root / "trust-but-verify"
+        for relative in sibling_files:
+            path = sibling / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("")
+        return anchor
+
+    def test_default_detector_sees_a_sibling_checkout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            anchor = self._anchor_with_sibling(
+                tmp, ["trust_but_verify/__init__.py"])
+            self.assertTrue(companion.default_detector(
+                environ={}, anchor=anchor))
+
+    def test_default_detector_sees_a_venv_installed_sibling(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            anchor = self._anchor_with_sibling(tmp, [
+                ".venv/lib/python3.12/site-packages/"
+                "trust_but_verify/__init__.py"])
+            self.assertTrue(companion.default_detector(
+                environ={}, anchor=anchor))
+
+    def test_default_detector_sees_a_venv_binary_sibling(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            anchor = self._anchor_with_sibling(
+                tmp, [".venv/bin/trust-but-verify"])
+            self.assertTrue(companion.default_detector(
+                environ={}, anchor=anchor))
+
+    def test_path_override_still_decides_over_a_sibling(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            anchor = self._anchor_with_sibling(
+                tmp, ["trust_but_verify/__init__.py"])
+            env = {"TRUST_BUT_VERIFY_PATH": str(Path(tmp) / "nope")}
+            self.assertFalse(companion.default_detector(
+                environ=env, anchor=anchor))
+
 
 class DeclaredLevelTest(unittest.TestCase):
     def test_level_from_the_guard_policy_file(self):
@@ -229,10 +271,12 @@ class GuardCliStartupTest(unittest.TestCase):
             self.assertEqual(init.returncode, 0, init.stderr)
             policy = json.loads((home / "policy.json").read_text())
             self.assertEqual(policy["level"], 11)
-            status = run_cli(home, "status")
+            absent = {"TRUST_BUT_VERIFY_PATH":
+                      str(Path(tmp) / "absent-tbv")}
+            status = run_cli(home, "status", env_extra=absent)
             self.assertEqual(status.returncode, 0, status.stderr)
             self.assertIn(URL, status.stderr)
-            again = run_cli(home, "status")
+            again = run_cli(home, "status", env_extra=absent)
             self.assertIn(URL, again.stderr)
 
     def test_start_at_11_with_the_tool_detected_is_silent(self):
@@ -286,7 +330,9 @@ class GuardMcpStartupTest(unittest.TestCase):
             home = Path(tmp) / "home"
             home.mkdir()
             (home / "policy.json").write_text(json.dumps({"level": 11}))
-            proc = self.run_mcp(home)
+            proc = self.run_mcp(
+                home, env_extra={"TRUST_BUT_VERIFY_PATH":
+                                 str(Path(tmp) / "absent-tbv")})
             self.assertIn(URL, proc.stderr)
             self.assertNotIn(URL, proc.stdout)
 

@@ -88,7 +88,26 @@ def companion_offer_for_level(level):
     return _OFFER
 
 
-def default_detector(environ=None):
+def _sibling_installation(anchor):
+    try:
+        anchor_path = Path(anchor).expanduser().resolve()
+        for parent in list(anchor_path.parents)[:4]:
+            sibling = parent / COMPANION_NAME
+            if (sibling / MODULE_NAME / "__init__.py").is_file():
+                return True
+            venv = sibling / ".venv"
+            if (venv / "bin" / BINARY_NAME).is_file():
+                return True
+            if any((venv / "lib").glob(
+                    "python*/site-packages/%s/__init__.py"
+                    % MODULE_NAME)):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def default_detector(environ=None, anchor=None):
     env = os.environ if environ is None else environ
     override = env.get(PATH_ENV)
     if override:
@@ -98,7 +117,14 @@ def default_detector(environ=None):
             return True
     except Exception:
         pass
-    return shutil.which(BINARY_NAME) is not None
+    if shutil.which(BINARY_NAME) is not None:
+        return True
+    # A source checkout or venv install in the sibling directory
+    # beside this project is also an installation: it is neither
+    # importable from here nor on PATH, and missing it made the
+    # PLAID prompt return forever on exactly that layout.
+    return _sibling_installation(
+        Path(__file__) if anchor is None else anchor)
 
 
 def install_prompt(level, detector=None):
