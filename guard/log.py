@@ -2,10 +2,11 @@ import copy
 import dataclasses
 import datetime
 import hashlib
-import hmac
 import json
 import os
 import secrets
+
+from guard import ed25519
 
 GENESIS_PREV_HASH = "0" * 64
 
@@ -36,11 +37,19 @@ class WriterError(LogError):
 
 @dataclasses.dataclass(frozen=True)
 class Key:
+    """An Ed25519 signing key. `material` is the secret seed and
+    never leaves the signer; `public_key` is the derived 32-byte
+    public key, which cannot produce a signature."""
+
     material: bytes
+
+    def __post_init__(self):
+        object.__setattr__(self, "_public",
+                           ed25519.publickey(self.material))
 
     @property
     def public_key(self):
-        return self.material
+        return self._public
 
 
 def generate_key():
@@ -59,16 +68,16 @@ def _material(key):
 
 
 def sign_event(key, event):
-    return hmac.new(_material(key), _canonical(event),
-                    hashlib.sha256).digest()
+    return ed25519.sign(_material(key), _canonical(event))
 
 
 def _verify_signature(public_key, event, signature):
     if not isinstance(signature, (bytes, bytearray)):
         return False
-    expected = hmac.new(public_key, _canonical(event),
-                        hashlib.sha256).digest()
-    return hmac.compare_digest(expected, bytes(signature))
+    if not isinstance(public_key, (bytes, bytearray)):
+        return False
+    return ed25519.verify(bytes(public_key), _canonical(event),
+                          bytes(signature))
 
 
 @dataclasses.dataclass

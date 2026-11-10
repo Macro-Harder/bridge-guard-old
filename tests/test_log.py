@@ -435,5 +435,50 @@ class SchemaTest(LogTestBase):
         self.assertNotIn("approve", accepted_types)
 
 
+class PublicKeyCannotForgeTest(LogTestBase):
+    """Regression for audit C2 / break-it A2: the log's "public"
+    key must carry no signing power. Before the Ed25519 swap,
+    Key.public_key WAS the HMAC key, and an entry signed with the
+    public material alone was accepted and verified."""
+
+    def test_submit_signed_with_public_material_only_is_refused(self):
+        public_only = self.keys["communicator"].public_key
+        with self.assertRaises(SignatureError):
+            self.submit(request_event(), "communicator",
+                        key=public_only)
+
+    def test_public_key_is_not_the_signing_material(self):
+        key = generate_key()
+        self.assertNotEqual(key.public_key, key.material)
+        self.assertEqual(len(key.public_key), 32)
+
+    def test_forged_entry_written_to_the_file_fails_verification(self):
+        import hashlib
+        import json
+        self.submit(request_event(), "communicator")
+        public_only = self.keys["communicator"].public_key
+        forged = {"id": "evt-forged", "type": "request",
+                  "request_id": "req-9", "counterpart": "agent-x",
+                  "format": 1, "path": "notes/plan.md", "size": 3,
+                  "sha256": HASH_A}
+        signature = sign_event(public_only, forged)
+        record = {
+            "id": forged["id"], "ts": "2026-11-07T18:00:00Z",
+            "type": "request", "signer": "communicator",
+            "fields": {k: v for k, v in forged.items()
+                       if k not in ("id", "type")},
+            "prev_hash": self.stored()[-1].hash, "position": 1,
+            "signature": signature.hex(), "second_signature": None,
+        }
+        body = {k: v for k, v in record.items() if k != "hash"}
+        record["hash"] = hashlib.sha256(json.dumps(
+            body, sort_keys=True,
+            separators=(",", ":")).encode("utf-8")).hexdigest()
+        with open(self.log_path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
+        with self.assertRaises(SignatureError):
+            verify_log(self.log_path, self.public)
+
+
 if __name__ == "__main__":
     unittest.main()
