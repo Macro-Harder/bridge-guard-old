@@ -49,7 +49,8 @@ installer packet asks whether to also install
 [trust-but-verify](https://github.com/Macro-Harder/trust-but-verify),
 which audits MCP servers' tool descriptions and schemas for
 hidden instructions before an agent trusts them; the monitor
-uses it as its MCP-audit companion. Declare the level at init
+agent — which watches the guard itself — uses it as its
+MCP-audit companion. Declare the level at init
 (`python3 guard.py --home ~/.bridge-guard init --level 11 ...`)
 or by setting `level` in `policy.json`. While a PLAID guard
 cannot detect trust-but-verify (via `$TRUST_BUT_VERIFY_PATH`, an

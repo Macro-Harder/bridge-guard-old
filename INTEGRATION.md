@@ -47,8 +47,8 @@ At PLAID (strictness level 11) the guard pairs with
 [trust-but-verify](https://github.com/Macro-Harder/trust-but-verify),
 a standalone MCP Server Auditor: it audits MCP servers' tool
 descriptions and schemas for hidden instructions before an agent
-trusts them, and the PLAID monitor uses it as its MCP-audit
-companion. The link is one-way and local: the installer packet
+trusts them, and the PLAID monitor — an agent that watches the
+guard's own operation — uses it as its MCP-audit companion. The link is one-way and local: the installer packet
 asks at PLAID whether to install it, and a PLAID guard
 start prompts its install while it is missing. Its verdicts
 reach the guard the same way everything else does — as data a

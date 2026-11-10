@@ -174,8 +174,8 @@ python3 demo/live_demo.py                 # end-to-end + attacks
 
 ## Companion at PLAID: trust-but-verify
 
-At PLAID — strictness level 11, every maximum, plus the monitor
-agent — the guard has a companion:
+At PLAID — strictness level 11, every maximum, plus a monitor
+agent that watches the guard itself — the guard has a companion:
 [trust-but-verify](https://github.com/Macro-Harder/trust-but-verify).
 It audits MCP servers' tool descriptions and schemas for hidden
 instructions before an agent trusts them, and at PLAID the
